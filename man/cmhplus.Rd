@@ -1,11 +1,11 @@
 \name{cmhplus}
 \alias{cmhplus}
-\title{cmhplus, World!}
+\title{cmhplus}
 \usage{
 cmhplus()
 }
 \description{
-Prints 'cmhplus, world!'.
+Prints 'cmhplus'.
 }
 \examples{
 cmhplus()
