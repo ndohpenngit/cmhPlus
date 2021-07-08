@@ -33,7 +33,7 @@ cmhplus.test <- function(data, method="", statistic, null.distr){
       stat<-cor(x,y)
       se<-sqrt((1-stat^2)/(length(x)-2))
       return(list(stat=stat,se=se,estimate=stat,n=length(x),
-                  weight=1/length(x))) # Weight=1/n?
+                  weight=1/length(x)))
     }
     null.distr<-"normal"
   }
@@ -79,7 +79,7 @@ cmhplus.test <- function(data, method="", statistic, null.distr){
       if((nlevels(x) < 2L) || (nlevels(y) < 2L))
         stop("'x' and 'y' must have at least 2 levels")
       else
-        tab <- table(x, y,z)
+        tab <- table(x, y, z)
     }
 
     if(!is.factor(x))
@@ -102,7 +102,7 @@ cmhplus.test <- function(data, method="", statistic, null.distr){
     pnull<-function(stat) {
       pchisq(stat, df, lower.tail = FALSE)# if (alternative == "two.sided")
     }
-   }
+  }
 
   results<-CMH_internal(x,y,z,statistic,pnull)
 
@@ -141,8 +141,11 @@ CMH_internal<-function(x,y,z,statistic,pnull) {
   return(list(stat=stat, p.value=p.value, estimate=estimate))
 }
 
-CMH_print<-function(results,est,stat,p) {
-  cat("stratum \t statistic \t estimate \n")
+CMH_print<-function(results,est,stat,p) { # include degree of freedom, df for X-square
+#  if((method=="means") || (method=="correlation"))
+    cat("stratum \t statistic \t estimate \n")
+#  else
+#    cat("stratum \t statistic \t df \t estimate \n")
   for(s in 1:length(results)) {
     cat(s,"\t",
         results[[s]]$stat/results[[s]]$se,"\t",
@@ -159,25 +162,29 @@ CMH_print<-function(results,est,stat,p) {
 # test
 
 set.seed(2788)
-df<-data.frame(x=rnorm(25),
+df1<-data.frame(x=rnorm(25),
                z=rep(1:5,rep(5,5)))
-df$y<-0.75*df$x+rnorm(25,sd=0.4)+df$z
+df1$y<-0.75*df1$x+rnorm(25,sd=0.4)+df1$z
 
-CMH(data=df, method="correlation")
+cmhplus.test(data=df1, method="correlation")
 
 
-df<-data.frame(x=rep(c(0,1),15),
+df2<-data.frame(x=rep(c(0,1),15),
                z=rep(1:5,rep(6,5)))
-df$y<-2+0.5*df$x+rnorm(30,sd=0.4)+df$z
+df2$y<-2+0.5*df2$x+rnorm(30,sd=0.4)+df2$z
+df2$x<-as.factor(df2$x)
 
-CMH(data=df, method="means")
+cmhplus.test(data=df2, method="means")
 
 
 df3<-data.frame(x=rep(c(0,1),30),
                 y=trunc(runif(30, 1,3)),
                 z=rep(1:5,rep(12,5)))
 col_names <- names(df3); df3[,col_names] <- lapply(df3[,col_names], factor)
+
 cmhplus.test(data = df3, method = "chi-squared", null.distr = "chi")
+
+
 
 
 CMH(data=df,
