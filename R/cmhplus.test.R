@@ -2,7 +2,7 @@
 ####
 library(boot)
 
-cmhplus.test <- function(data, method="", statistic, null.distr){
+CMHplus.test <- function(data, method, statistic, null.distr){
   # top level function for the end user
 
   # data: data frame, which needs the following columns
@@ -29,10 +29,11 @@ cmhplus.test <- function(data, method="", statistic, null.distr){
       stop("'y' must be a numeric")
     if(!is.numeric(y))
       stop("'y' must be a numeric")
-    statistic<-function(x,y) {
+    METHOD <- paste("Correlation test")
+    statistic<-function(x, y) {
       stat<-cor(x,y)
       se<-sqrt((1-stat^2)/(length(x)-2))
-      return(list(stat=stat,se=se,estimate=stat,n=length(x),
+      return(list(stat=stat, se=se, estimate=stat, n=length(x),
                   weight=1/length(x)))
     }
     null.distr<-"normal"
@@ -44,11 +45,12 @@ cmhplus.test <- function(data, method="", statistic, null.distr){
       stop("'y' must be a numeric")
     if(!is.factor(x))
       stop("'x' must be a factor")
-    statistic<-function(x,y) {
+    METHOD <- paste("Means")
+    statistic<-function(x, y) {
       m<-lm(y~x)
       stat<-as.numeric(m$coefficients[2])
       se<-summary(m)$coeff[2,2]
-      return(list(stat=stat,se=se,estimate=stat,n=length(x),
+      return(list(stat=stat, se=se, estimate=stat, n=length(x),
                   weight=1/length(x)))
     }
     null.distr<-"normal"
@@ -78,41 +80,40 @@ cmhplus.test <- function(data, method="", statistic, null.distr){
         stop("'x', 'y', and 'z' must have the same length")
       if((nlevels(x) < 2L) || (nlevels(y) < 2L))
         stop("'x' and 'y' must have at least 2 levels")
-      else
-        tab <- table(x, y, z)
+#      else
+#        tab <- table(x, y, z)
     }
-
-    if(!is.factor(x))
-      stop("'x' must be a factor")
-    if(!is.factor(y))
-      stop("'y' must be a factor")
-
-    statistic<-function(x,y) {
-      tab <- table(x, y)
-      xsq<-chisq.test(tab)
-      stat<-xsq$statistic
-      df<-xsq$parameter
-      return(list(stat=stat,df=df,estimate=stat,n=length(x),
+#    if(!is.factor(x))
+#      stop("'x' must be a factor")
+#    if(!is.factor(y))
+#      stop("'y' must be a factor")
+    METHOD <- paste("Chi-squared test")
+    statistic<-function(x, y) {
+      res.chisq<-chisq.test(table(x, y), correct = F)
+      stat<-res.chisq$statistic
+      df<-res.chisq$parameter
+      return(list(stat=stat, df=df, estimate=stat, n=length(x),
                  weight=1/length(x)))
     }
-    null.distr<-"chi"
+    null.distr<-"chisq"
   }
 
-  if(null.distr=="chi") {
+  if(null.distr=="chisq") {
     pnull<-function(stat) {
-      pchisq(stat, df, lower.tail = FALSE)# if (alternative == "two.sided")
+      pchisq(stat, df, lower.tail = F)
     }
   }
 
-  results<-CMH_internal(x,y,z,statistic,pnull)
+  results<-CMH_internal(x, y, z, statistic, pnull)
 
-  return(list(statistic=results$stat,
+  return(list(METHOD, statistic=results$stat,
               p.value=results$p.value))
+
 
 }
 
 
-CMH_internal<-function(x,y,z,statistic,pnull) {
+CMH_internal<-function(x, y, z, statistic, pnull) {
   strata<-unique(z)
   numerator<-0
   denominator<-0
@@ -121,7 +122,7 @@ CMH_internal<-function(x,y,z,statistic,pnull) {
   cnt<-1
   stratum.results<-list()
   for(s in strata) {
-    stratum.stat<-statistic(x[z==s],y[z==s])
+    stratum.stat<-statistic(x[z==s], y[z==s])
 
     stratum.results[[cnt]]<-stratum.stat
     cnt<-cnt+1
@@ -136,26 +137,24 @@ CMH_internal<-function(x,y,z,statistic,pnull) {
   p.value<-pnull(stat)
 
   CMH_print(stratum.results,
-            estimate,stat,p.value)
+            estimate, stat, p.value)
 
   return(list(stat=stat, p.value=p.value, estimate=estimate))
+
 }
 
-CMH_print<-function(results,est,stat,p) { # include degree of freedom, df for X-square
-#  if((method=="means") || (method=="correlation"))
-    cat("stratum \t statistic \t estimate \n")
-#  else
-#    cat("stratum \t statistic \t df \t estimate \n")
+CMH_print<-function(results, est, stat, p) { # include degree of freedom, df for X-squared
+  cat("stratum \t statistic \t estimate \n")
   for(s in 1:length(results)) {
-    cat(s,"\t",
-        results[[s]]$stat/results[[s]]$se,"\t",
-        results[[s]]$estimate,"\n")
+    cat(s, "\t",
+        results[[s]]$stat/results[[s]]$se, "\t",
+        results[[s]]$estimate, "\n")
   }
   cat("\n")
-  cat(paste("Test statistic: ",stat,"\n"))
-#  cat(paste("Degrees of freedom: ",df,"\n"))
-  cat(paste("p-value: ",round(p,5),"\n"))
-  cat(paste("Estimate: ",est,"\n"))
+  cat(paste("Test statistic: ", stat, "\n"))
+#  cat(paste("Degrees of freedom: ", df, "\n"))
+  cat(paste("p-value: ", round(p,5), "\n"))
+  cat(paste("Estimate: ", est, "\n"))
 }
 
 
@@ -163,10 +162,10 @@ CMH_print<-function(results,est,stat,p) { # include degree of freedom, df for X-
 
 set.seed(2788)
 df1<-data.frame(x=rnorm(25),
-               z=rep(1:5,rep(5,5)))
-df1$y<-0.75*df1$x+rnorm(25,sd=0.4)+df1$z
+               z=rep(1:5, rep(5,5)))
+df1$y<-0.75*df1$x+rnorm(25, sd=0.4)+df1$z
 
-cmhplus.test(data=df1, method="correlation")
+CMHplus.test(data=df1, method="correlation")
 
 
 df2<-data.frame(x=rep(c(0,1),15),
@@ -174,20 +173,20 @@ df2<-data.frame(x=rep(c(0,1),15),
 df2$y<-2+0.5*df2$x+rnorm(30,sd=0.4)+df2$z
 df2$x<-as.factor(df2$x)
 
-cmhplus.test(data=df2, method="means")
+CMHplus.test(data=df2, method="means")
 
 
-df3<-data.frame(x=rep(c(0,1),30),
-                y=trunc(runif(30, 1,3)),
-                z=rep(1:5,rep(12,5)))
+df3<-data.frame(x=rep(c(0,1),250),
+                y=trunc(runif(250, 1,3)),
+                z=rep(1:5,rep(25,5)))
 col_names <- names(df3); df3[,col_names] <- lapply(df3[,col_names], factor)
 
-cmhplus.test(data = df3, method = "chi-squared", null.distr = "chi")
+CMHplus.test(data = df3, method = "chi-squared", null.distr = "chisq")
 
 
 
 
-CMH(data=df,
+CMHplus.test(data=df,
     statistic = function(x,y){
       teststat<-function(m,ind=1:length(x)) {
         x<-m$x[ind]
